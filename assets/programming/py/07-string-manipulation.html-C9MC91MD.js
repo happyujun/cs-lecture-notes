@@ -1,0 +1,1 @@
+import"../../modulepreload-polyfill-P2Xu9kJm.js";import{t as e}from"../../prism-Bqfy9DnD.js";import"../../prism-python.min-CfiSVtM6.js";/* empty css                        */e.highlightAll();

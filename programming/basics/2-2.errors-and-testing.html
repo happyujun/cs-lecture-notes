@@ -1,0 +1,923 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오류와 테스트</title>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+  <link rel="stylesheet" href="../../assets/programming-BrBKhrwB.css">
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-bug absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-magnifying-glass absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">programming</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            오류와 테스트
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            돌아가기는 하는데<br>
+            <strong>답이 맞는지는 어떻게 알까요?</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>문법 오류 &middot; 실행 오류 &middot; 논리 오류를 구별하고, 각각이 언제 드러나는지 설명할 수 있다.</li>
+                    <li>디버깅이 원인을 좁혀 가는 일임을 알고, 그 순서를 설명할 수 있다.</li>
+                    <li>경계값과 잘못된 입력을 골라 테스트할 값을 정하고, 단위 &middot; 통합 &middot; 시스템 테스트를 구별할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-bug text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">오류와 테스트</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#kinds" class="hover:text-orange-600 transition">오류 세 가지</a>
+            <a href="#debug" class="hover:text-orange-600 transition">디버깅</a>
+            <a href="#cases" class="hover:text-orange-600 transition">어떤 값을 넣나</a>
+            <a href="#levels" class="hover:text-orange-600 transition">테스트의 크기</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 오류 세 가지 ===== -->
+    <section id="kinds" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">어긋나는 방식이 세 가지 있다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">같은 &lsquo;오류&rsquo;라도 드러나는 때가 서로 다릅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지난 시간 마지막에 <strong>간식 6개를 4명에게 나눴는데 &ldquo;한 사람당 2개, 2개 남음&rdquo;이 나오는</strong> 경우를 보았습니다.
+                이런 것을 찾아 고치는 것이 이번 시간의 일입니다.
+                먼저 알아 둘 것은, <strong>프로그램이 어긋나는 방식이 한 가지가 아니라는 점</strong>입니다.
+            </p>
+
+            <div class="space-y-3">
+                <div class="bg-white border-l-4 border-l-rose-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">문법 오류 &mdash; 규칙에 어긋나게 적었다</p>
+                    <p class="text-base font-medium text-rose-700">번역할 때 드러난다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        따옴표를 한쪽만 적었거나, 괄호를 닫지 않았거나, 낱말의 철자를 틀린 경우입니다.
+                        번역기가 <strong>실행하기도 전에 멈추고 어디가 이상한지 알려 줍니다.</strong>
+                        셋 중 <strong>가장 반가운 오류</strong>입니다 &mdash; 알려 주니까요.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-amber-500 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">실행 오류 &mdash; 돌리다가 멈췄다</p>
+                    <p class="text-base font-medium text-amber-700">그 줄에 이르렀을 때 드러난다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        규칙에는 맞게 적혀 있어서 번역은 통과했는데,
+                        <strong>실제로 돌려 보니 할 수 없는 일을 만나 멈추는</strong> 경우입니다.
+                        <strong>0으로 나누려 하거나</strong>, 숫자를 받아야 할 자리에 글자가 들어오거나,
+                        없는 파일을 열려고 할 때 이렇게 됩니다.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-slate-700 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">논리 오류 &mdash; 끝까지 도는데 답이 틀렸다</p>
+                    <p class="text-base font-medium text-slate-700">아무도 알려 주지 않는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        번역도 통과하고 멈추지도 않고 결과까지 잘 나옵니다. <strong>그 결과가 틀렸을 뿐입니다.</strong>
+                        나누기와 나머지를 바꿔 적었거나, 크다와 크거나 같다를 헷갈렸거나, 순서를 뒤집어 적은 경우입니다.
+                        <strong>찾아내기가 가장 어렵습니다</strong> &mdash; 아무 표시도 나지 않기 때문입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">종류</th>
+                        <th>언제 드러나나</th>
+                        <th>간식 나누기에서 예를 들면</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">문법 오류</td>
+                        <td>번역할 때. 실행이 시작되지 않는다</td>
+                        <td>안내 문구의 따옴표를 한쪽만 적었다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">실행 오류</td>
+                        <td>돌다가 그 줄에서 멈춘다</td>
+                        <td>사람 수 0을 검사하지 않고 그대로 나눴다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">논리 오류</td>
+                        <td>드러나지 않는다. 사람이 찾아야 한다</td>
+                        <td>몫을 낼 자리에 나머지를 냈다</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>&ldquo;에러 없이 잘 돌아간다&rdquo;는 안심할 근거가 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    빨간 글씨가 안 뜨면 다 된 것 같지만, <strong>그것은 문법 오류와 실행 오류가 없다는 뜻일 뿐</strong>입니다.
+                    논리 오류는 원래 아무 표시도 나지 않습니다.
+                    앞에서 &ldquo;번역을 통과해도 원한 대로 동작한다는 보장은 없다&rdquo;고 한 것이 바로 이 이야기입니다.
+                    <strong>그래서 값을 넣어 보고 결과를 눈으로 대조하는 일이 따로 필요합니다.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                맨 앞에서 본 &ldquo;간식 6개, 4명 &rarr; 한 사람당 2개, 2개 남음&rdquo;은 셋 중 어느 오류일까요?
+                그렇게 판단한 근거를 <strong>&lsquo;언제 드러나나&rsquo; 열에서</strong> 찾아 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 디버깅 ===== -->
+    <section id="debug" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">원인을 좁혀 가는 일</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">어디가 잘못됐는지 모를 때 무엇부터 해야 할까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                잘못된 곳을 찾아 고치는 일을 <strong>디버깅(debugging)</strong>이라고 합니다.
+                흔히 코드를 노려보며 틀린 곳을 &lsquo;발견하는&rsquo; 일로 여기지만, 실제로는 그렇게 되지 않습니다.
+                <strong>범위를 절반씩 줄여 가며 원인을 가두는 일</strong>에 가깝습니다.
+            </p>
+
+            <div class="space-y-3">
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-orange-900">1. 다시 일어나게 만든다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        어떤 값을 넣었을 때 잘못됐는지 <strong>정확히 적어 둡니다.</strong>
+                        <strong>다시 일으킬 수 없는 문제는 고쳤는지도 확인할 수 없습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-orange-900">2. 어디까지 맞는지 확인한다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        중간에 값을 찍어 보며 <strong>&lsquo;여기까지는 맞다&rsquo;는 지점을 찾습니다.</strong>
+                        맞는 지점과 틀린 지점 사이가 좁아질수록 원인이 갇힙니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-orange-900">3. 왜 그런지 설명해 본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        고치기 전에 <strong>&ldquo;이러이러해서 이런 결과가 나온 것이다&rdquo;를 말로 해 봅니다.</strong>
+                        설명이 안 되면 아직 원인을 못 찾은 것입니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-orange-900">4. 고치고 다시 넣어 본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        1번에 적어 둔 값을 다시 넣어 확인합니다.
+                        <strong>고치다가 다른 데를 망가뜨렸을 수 있으니 멀쩡하던 값들도 다시 넣어 봅니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>이것저것 바꿔 보다 고쳐지는 경우
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    여기저기 손대다 보면 어느 순간 결과가 맞게 나오기도 합니다. 기분은 좋지만
+                    <strong>왜 고쳐졌는지 모르는 상태는 고치기 전과 크게 다르지 않습니다.</strong>
+                    원인을 모르면 같은 문제가 다른 자리에서 또 나올 때 또 헤매게 되고,
+                    실은 <strong>가려 놓았을 뿐 안 고쳐진 경우</strong>도 있습니다.
+                    3번을 건너뛰지 않는 이유입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                4번에서 <strong>&ldquo;멀쩡하던 값들도 다시 넣어 본다&rdquo;</strong>고 했습니다. 왜 그래야 할까요?
+                고치는 행위가 무엇을 건드렸을지 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 어떤 값을 넣나 ===== -->
+    <section id="cases" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">아무 값이나 넣어 보면 될까</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">넣어 볼 수 있는 값은 끝이 없는데, 무엇부터 넣어야 할까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                간식 개수로 넣을 수 있는 숫자는 끝이 없습니다.
+                <strong>전부 넣어 볼 수는 없으니 잘 고르는 수밖에 없습니다.</strong>
+                그리고 잘 고른다는 것은 <strong>틀릴 만한 자리를 노린다</strong>는 뜻입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">경계값을 노린다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        조건이 갈리는 자리에서 실수가 가장 많이 납니다.
+                        &lsquo;사람 수는 1명 이상&rsquo;이라는 조건이 있다면
+                        <strong>경계인 1과, 그 바로 아래인 0, 바로 위인 2</strong>를 함께 넣어 봅니다.
+                        가운데 값 50만 넣어 보면 경계에서 어긋나는 것을 못 잡습니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">일부러 이상한 값을 넣는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        만든 사람은 <strong>바르게 쓸 줄 아니까 바르게만 넣어 봅니다.</strong>
+                        쓰는 사람은 그렇지 않습니다.
+                        숫자 자리에 글자를 넣고, 빈칸으로 넘기고, 음수를 넣습니다.
+                        <strong>&ldquo;그렇게 넣을 리가 없는데&rdquo;라고 생각한 값일수록 넣어 봐야 합니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">간식 나누기를 실제로 시험한 기록</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    넣은 값 &middot; 나와야 할 결과 &middot; 실제로 나온 결과를 나란히 적습니다.
+                    <strong>&lsquo;나와야 할 결과&rsquo;는 프로그램을 돌려 보고 적는 것이 아니라
+                    요구 사항을 보고 미리 적습니다.</strong> 돌려 본 뒤에 적으면 틀린 답을 맞다고 적게 됩니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이렇게 어긋난 자리를 적어 둔 것을 <strong>오류 보고서</strong>라고 부릅니다.
+                    고치는 사람이 <strong>어떤 값을 넣으면 다시 일어나는지</strong>를 알아야 하므로,
+                    &ldquo;안 돼요&rdquo; 대신 <strong>넣은 값과 나온 결과를 함께</strong> 적는 것이 요점입니다.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-40">넣은 값</th>
+                            <th>나와야 할 결과</th>
+                            <th>실제로 나온 결과</th>
+                            <th class="w-24">판정</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>간식 12개, 4명</td>
+                            <td>한 사람당 3개, 0개 남음</td>
+                            <td>한 사람당 3개, 0개 남음</td>
+                            <td class="font-bold">통과</td>
+                        </tr>
+                        <tr>
+                            <td>간식 6개, 4명</td>
+                            <td>한 사람당 1개, 2개 남음</td>
+                            <td>한 사람당 1개, 2개 남음</td>
+                            <td class="font-bold">통과</td>
+                        </tr>
+                        <tr>
+                            <td>간식 3개, 5명</td>
+                            <td>한 사람당 0개, 3개 남음</td>
+                            <td>한 사람당 0개, 3개 남음</td>
+                            <td class="font-bold">통과</td>
+                        </tr>
+                        <tr>
+                            <td>간식 10개, 1명</td>
+                            <td>한 사람당 10개, 0개 남음</td>
+                            <td>한 사람당 10개, 0개 남음</td>
+                            <td class="font-bold">통과</td>
+                        </tr>
+                        <tr>
+                            <td>간식 10개, 0명</td>
+                            <td>나눌 수 없다는 안내</td>
+                            <td>프로그램이 멈춤</td>
+                            <td class="font-bold">실패</td>
+                        </tr>
+                        <tr>
+                            <td>간식 개수에 &lsquo;다섯&rsquo;</td>
+                            <td>?</td>
+                            <td>프로그램이 멈춤</td>
+                            <td class="font-bold">?</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-exclamation text-rose-500 mr-1"></i>다섯째 줄 &mdash; 고칠 곳이 분명하다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    사람 수 0을 넣었더니 멈췄습니다. 요구 사항 4번에 <strong>&ldquo;0명이면 나눌 수 없다고 알린다&rdquo;</strong>고
+                    적어 두었으니 <strong>나와야 할 결과가 이미 정해져 있습니다.</strong>
+                    설계의 3번 줄(사람 수가 0인지 먼저 보는 검사)이 코드에 빠져 있는 것입니다. 그 줄을 넣으면 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-arrows-rotate text-amber-500 mr-1"></i>여섯째 줄 &mdash; 고칠 수가 없다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    숫자 자리에 글자를 넣었더니 멈췄습니다.
+                    그런데 <strong>나와야 할 결과 칸을 채울 수가 없습니다.</strong>
+                    요구 사항 어디에도 <strong>글자가 들어왔을 때 어떻게 할지가 적혀 있지 않기</strong> 때문입니다.
+                    이건 코드가 틀린 것이 아니라 <strong>요구 사항이 빠진 것</strong>입니다.
+                    그래서 여기서는 코드를 고치지 않고 <strong>1단계로 돌아가 되묻습니다</strong> &mdash;
+                    다시 입력받을까요, 안내만 하고 끝낼까요?
+                    <strong>테스트가 앞 단계의 구멍을 찾아 주는 일</strong>이 이렇게 자주 있습니다.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>다 통과하면 버그가 없는 건가요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    아닙니다. <strong>테스트는 문제가 있다는 것은 보여 주지만, 문제가 없다는 것은 보여 주지 못합니다.</strong>
+                    넣어 보지 않은 값이 언제나 남아 있기 때문입니다.
+                    그래서 &ldquo;버그가 없다&rdquo;가 아니라 <strong>&ldquo;넣어 본 값에서는 문제가 없었다&rdquo;</strong>가 정확한 말입니다.
+                    값을 잘 고르는 일이 중요한 이유가 여기 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                위 표에 <strong>한 줄을 더 보태 보세요.</strong> 아직 넣어 보지 않은 값 가운데
+                틀릴 만해 보이는 것을 하나 고르고, <strong>나와야 할 결과를 요구 사항에서 찾아</strong> 함께 적으면 됩니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 테스트의 크기 ===== -->
+    <section id="levels" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">작은 것부터 넓혀 간다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">전체를 한 번에 시험하면 안 되는 이유가 있을까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                프로그램이 커지면 <strong>한 번에 전체를 돌려 보는 것만으로는 원인을 못 찾습니다.</strong>
+                어딘가 틀렸다는 것만 알 뿐 어디인지 알 수가 없기 때문입니다.
+                그래서 <strong>시험하는 범위를 작은 것에서 큰 것으로 넓혀 갑니다.</strong>
+            </p>
+
+            <div class="space-y-3">
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">단위 테스트</p>
+                    <p class="text-base font-medium text-orange-700">부분 하나만 떼어서</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        가장 작은 조각 하나가 제 몫을 하는지만 봅니다.
+                        간식 나누기라면 <strong>몫과 나머지를 구하는 부분만</strong> 떼어 여러 숫자를 넣어 봅니다.
+                        범위가 좁아서 <strong>틀리면 어디가 틀렸는지 바로 압니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">통합 테스트</p>
+                    <p class="text-base font-medium text-orange-700">이어 붙여서</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        조각들을 이어 붙였을 때 <strong>사이에서 값이 제대로 건너가는지</strong>를 봅니다.
+                        입력받은 값이 계산하는 부분까지 잘 넘어가는지, 계산 결과가 화면에 내보내는 부분까지 잘 닿는지입니다.
+                        <strong>조각 하나하나는 멀쩡한데 이어 놓으면 안 되는 경우</strong>가 여기서 잡힙니다.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">시스템 테스트</p>
+                    <p class="text-base font-medium text-orange-700">전부 갖춰 놓고</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        완성된 프로그램을 <strong>실제로 쓰는 것처럼</strong> 돌려 봅니다.
+                        판정 기준은 <strong>1단계에서 적어 둔 요구 사항</strong>입니다.
+                        앞 절의 시험 기록이 바로 이 단계에서 만든 것입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>세 가지를 다 해야 하나요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    수업에서 만드는 짧은 프로그램은 조각이 나뉘어 있지 않아 <strong>단위와 시스템의 구별이 흐릿합니다.</strong>
+                    셋을 꼭 따로 하라는 뜻이 아니라, <strong>범위를 좁혀 확인한 다음에 넓혀 확인한다는 순서</strong>가 요점입니다.
+                    지난 시간에 &ldquo;조금 적고 바로 확인한다&rdquo;고 한 것이 사실 단위 테스트를 하고 있었던 것입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;조각 하나하나는 멀쩡한데 이어 놓으면 안 된다&rdquo;는 일이 왜 생길까요?
+                간식 나누기에서 <strong>입력받는 부분과 계산하는 부분 사이</strong>에 무엇이 어긋날 수 있을지 하나만 떠올려 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">오류 세 가지</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">드러나는 때가 다르다</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>문법 오류</strong> 번역할 때 &mdash; 번역기가 알려 준다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>실행 오류</strong> 돌다가 그 줄에서 멈춘다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>논리 오류</strong> 끝까지 도는데 답이 틀렸다. 아무도 안 알려 준다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-orange-500">
+                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">디버깅</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">발견이 아니라 좁히기</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>다시 일어나게 만들고 &rarr; <strong>어디까지 맞는지</strong> 찾는다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>고치기 전에 <strong>왜 그런지 말로 설명</strong>해 본다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>고친 뒤 <strong>멀쩡하던 값들도 다시</strong> 넣어 본다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">넣어 볼 값 고르기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">틀릴 만한 자리를 노린다</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>경계값</strong> &mdash; 경계와 그 바로 아래 &middot; 바로 위</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>일부러 <strong>이상한 값</strong>을 넣는다. 나와야 할 결과는 <strong>미리</strong> 적는다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>다 통과해도 <strong>&ldquo;넣어 본 값에서는&rdquo;</strong>일 뿐이다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">테스트의 크기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">좁게 보고 넓혀 간다</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>단위</strong> 부분 하나 &middot; <strong>통합</strong> 이어 붙여서 &middot; <strong>시스템</strong> 전부 갖춰 놓고</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>시스템 테스트의 판정 기준은 <strong>요구 사항</strong>이다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>테스트가 <strong>앞 단계의 구멍</strong>을 찾아 주기도 한다</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-orange-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    간식 6개를 4명에게 나눴는데 &ldquo;한 사람당 2개, 2개 남음&rdquo;이 나왔습니다. 어떤 오류일까요?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '문법 오류였다면 번역 단계에서 멈춰 실행 자체가 되지 않았을 것입니다. 결과가 나왔으니 문법은 맞습니다.')">
+                    ① 문법 오류
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실행 오류였다면 도중에 멈췄을 것입니다. 끝까지 돌아 결과를 내놓았습니다.')">
+                    ② 실행 오류
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 끝까지 돌고 결과도 나왔는데 그 값이 틀렸습니다. 몫 자리에 나머지를 낸 것으로 보입니다.')">
+                    ③ 논리 오류
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '오류가 맞습니다. 6을 4로 나눈 몫은 1이고 나머지가 2이므로, 한 사람당 1개에 2개가 남아야 합니다.')">
+                    ④ 오류가 아니다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-orange-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    &lsquo;사람 수는 1명 이상&rsquo;이라는 조건을 <strong>경계값 검사</strong>로 확인하려 합니다. 넣어 볼 값으로 가장 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '가운데 값만 넣으면 경계에서 어긋나는 것을 잡지 못합니다. 조건이 갈리는 자리를 노려야 합니다.')">
+                    ① 10명, 50명, 100명
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '정확합니다! 경계인 1명과 그 바로 아래인 0명, 바로 위인 2명을 함께 넣는 것이 경계값 검사입니다.')">
+                    ② 0명, 1명, 2명
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '경계에서 멀리 떨어진 값들이라 조건이 갈리는 자리를 건드리지 못합니다.')">
+                    ③ 5명, 6명, 7명
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '큰 값만 넣는 것으로는 1명 근처에서 어긋나는지 알 수 없습니다.')">
+                    ④ 100명, 1000명
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-orange-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    오류와 테스트에 대한 설명으로 <strong>옳지 않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '이것이 옳지 않습니다. 테스트는 문제가 있다는 것은 보여 주지만 문제가 없다는 것은 보여 주지 못합니다. 넣어 보지 않은 값이 늘 남아 있습니다.')">
+                    ① 준비한 값을 모두 통과하면 버그가 없다고 말할 수 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 돌려 본 뒤에 적으면 틀린 답을 맞다고 적게 됩니다.')">
+                    ② 나와야 할 결과는 돌려 보기 전에 요구 사항을 보고 적는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 나와야 할 결과를 적을 수 없다면 요구 사항이 빠진 것이므로 1단계로 돌아갑니다.')">
+                    ③ 테스트가 요구 사항의 구멍을 찾아 주기도 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 원인을 모른 채 고쳐진 것은 가려 놓았을 뿐일 수 있습니다.')">
+                    ④ 왜 고쳐졌는지 설명할 수 없다면 아직 원인을 찾은 것이 아니다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

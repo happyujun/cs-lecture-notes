@@ -1,0 +1,953 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewpoㄱrt" content="width=device-width, initial-scale=1.0">
+    <title>비만도 측정</title>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+  <script type="module" src="../../assets/programming/practice/bmi-measurement.html-C9MC91MD.js"></script>
+  <link rel="modulepreload" href="../../assets/modulepreload-polyfill-P2Xu9kJm.js">
+  <link rel="modulepreload" href="../../assets/rolldown-runtime-Dd_uD5pT.js">
+  <link rel="modulepreload" href="../../assets/prism-Bqfy9DnD.js">
+  <link rel="modulepreload" href="../../assets/prism-python.min-CfiSVtM6.js">
+  <link rel="stylesheet" href="../../assets/programming-BrBKhrwB.css">
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-scale-balanced absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-code absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">programming</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            비만도 측정
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            배운 다섯 단계를 그대로 밟아<br>
+            <strong>프로그램 하나를 끝까지</strong> 만들어 봅니다.
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>주어진 문제에서 요구 사항을 뽑아내고, 애매한 곳을 스스로 되물어 정할 수 있다.</li>
+                    <li>구간에 따라 계산이 달라지는 문제를 입력 &middot; 처리 &middot; 출력으로 나누어 설계할 수 있다.</li>
+                    <li>설계한 대로 조건을 여러 갈래로 나누는 코드를 작성할 수 있다.</li>
+                    <li>경계값을 골라 테스트하고, 결과가 어긋난 까닭을 찾아 고칠 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-scale-balanced text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">비만도 측정</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#brief" class="hover:text-orange-600 transition">문제</a>
+            <a href="#plan" class="hover:text-orange-600 transition">기획</a>
+            <a href="#design" class="hover:text-orange-600 transition">설계</a>
+            <a href="#code" class="hover:text-orange-600 transition">구현</a>
+            <a href="#test" class="hover:text-orange-600 transition">테스트</a>
+            <a href="#more" class="hover:text-orange-600 transition">더 해 보기</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 0: 문제 ===== -->
+    <section id="brief" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">무엇을 만드나</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">기초에서 배운 다섯 단계를 이번엔 직접 밟아 봅니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">주어진 문제</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    키와 몸무게를 입력받아, <strong>그 키의 표준 몸무게에서 얼마나 벗어났는지</strong>를 계산하고
+                    <strong>정상 &middot; 과체중 &middot; 비만 가운데 하나로 판정해</strong> 알려 주는 프로그램을 만듭니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>먼저 밝혀 둘 것 &mdash; 이 프로그램은 건강을 판정하지 않습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    여기서 쓰는 계산법과 구간은 <strong>수업에서 조건 나누기를 연습하려고 단순하게 정한 것</strong>입니다.
+                    사람의 몸 상태는 키와 몸무게 두 숫자로 정해지지 않고,
+                    실제 건강 판정은 <strong>훨씬 많은 것을 함께 봅니다.</strong>
+                    이 프로그램이 내놓는 말은 <strong>계산 결과일 뿐 어떤 사람에 대한 평가가 아닙니다.</strong>
+                    자기 값이나 남의 값을 넣어 보며 비교하는 용도로 쓰지 않도록 합니다.
+                </p>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                아래 순서로 갑니다. <strong>2-1에서 본 다섯 단계 그대로</strong>이고,
+                유지 보수만 빠져 있습니다 &mdash; 만들자마자 끝나는 수업용 프로그램이기 때문입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">단계</th>
+                        <th>여기서 답할 질문</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">1 기획</td>
+                        <td>정확히 무엇을 만들 것인가 &mdash; 애매한 곳을 없앤다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">2 설계</td>
+                        <td>무엇을 받아 어떻게 처리해 무엇을 내놓을 것인가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">3 구현</td>
+                        <td>정한 순서를 파이썬으로 어떻게 옮기는가</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">4 테스트</td>
+                        <td>어떤 값을 넣어 보고, 어긋나면 어디를 볼 것인가</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border-2 border-slate-300 rounded-2xl p-6 space-y-4">
+                <p class="font-black text-lg text-slate-900">
+                    <i class="fa-solid fa-file-arrow-down text-slate-500 mr-2"></i>먼저 개발 문서 양식을 내려받으세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>읽기만 하지 말고 직접 채워 보세요.</strong>
+                    단계마다 자기 답을 적어 두면 그것이 곧 요구 사항 명세서이자 설계서가 됩니다.
+                    <strong>답을 보기 전에 먼저 적어 보는 것</strong>이 이 실습의 요점입니다.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <a class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="docx/bmi-measurement.py.docx"
+                       download="[개발 문서] 비만도 측정 프로그램 (Python).docx">
+                        <i class="fa-solid fa-download"></i>Python 양식 내려받기
+                    </a>
+                    <a class="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base shadow-md transition-colors"
+                       href="docx/bmi-measurement.c.docx"
+                       download="[개발 문서] 비만도 측정 프로그램 (C).docx">
+                        <i class="fa-solid fa-download"></i>C 양식 내려받기
+                    </a>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>기획과 설계는 언어와 상관없습니다.</strong> 두 양식의 앞부분은 같고,
+                    구현을 적는 자리만 언어에 맞춰 다릅니다.
+                    <strong>수업에서 쓰는 언어에 맞는 것을 받으면 됩니다</strong> &mdash;
+                    이 강의노트의 코드 예시는 파이썬으로 되어 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 1: 기획 ===== -->
+    <section id="plan" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">1단계 &middot; 무엇을 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">문제 설명을 그대로 받아 적으면 요구 사항이 될까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                위 문제 설명에는 아직 정해지지 않은 것이 남아 있습니다. 되물어 봅시다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">되물어야 할 것들</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>키를 무엇으로 받나요?</strong> 센티미터인가요 미터인가요</li>
+                    <li><strong>표준 몸무게를 어떻게 구하나요?</strong> 키에 따라 다른가요</li>
+                    <li><strong>어디까지가 정상인가요?</strong> 경계에 딱 걸친 값은 어느 쪽인가요</li>
+                    <li><strong>표준보다 가벼우면?</strong> 벗어난 정도가 음수가 되는데 그때는 무엇을 내놓나요</li>
+                    <li><strong>소수점이 있는 키는요?</strong> 170.5처럼 들어올 수 있나요</li>
+                </ul>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                되묻고 나서 이렇게 정했습니다.
+                <strong>다르게 정해도 됩니다.</strong> 다만 정했으면 적어 두어야 뒤 단계가 흔들리지 않습니다.
+            </p>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">정리한 요구 사항</p>
+                <ol class="space-y-2 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>키(cm)와 몸무게(kg)를 <strong>한 줄에 공백으로 띄어</strong> 입력받는다. 소수점이 있어도 받는다.</li>
+                    <li>표준 몸무게는 <strong>키 구간에 따라 다른 식</strong>으로 구한다.</li>
+                    <li>벗어난 정도는 <strong>표준 몸무게 대비 백분율</strong>로 구한다.</li>
+                    <li><strong>10% 이하는 정상, 10% 초과 20% 이하는 과체중, 20% 초과는 비만</strong>으로 판정한다.</li>
+                    <li>판정 결과 <strong>한 낱말만</strong> 화면에 내놓는다.</li>
+                    <li><strong>표준보다 가벼운 경우는 이번 판에서 따로 다루지 않는다.</strong> 정상에 함께 넣는다.</li>
+                </ol>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>6번을 눈여겨보세요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>&lsquo;하지 않을 것&rsquo;을 적어 둔 자리</strong>입니다.
+                    적어 두지 않으면 나중에 &ldquo;가벼운 사람한테 정상이라고 나오는데 이거 버그 아니야?&rdquo;라는 말이 나옵니다.
+                    <strong>정해서 뺀 것과 빠뜨린 것은 다릅니다.</strong> 적어 두어야 그 둘이 구별됩니다.
+                    이 결정은 <strong>마지막 절에서 다시 뒤집어 볼 것</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                요구 사항 4번에서 <strong>&lsquo;이하&rsquo;와 &lsquo;초과&rsquo;를 굳이 갈라 적은 이유</strong>는 무엇일까요?
+                &ldquo;10%쯤까지 정상&rdquo;이라고 적었다면 무슨 일이 생길지 생각해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 설계 ===== -->
+    <section id="design" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">2단계 &middot; 어떻게 만들 것인가</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">계산이 구간마다 달라질 때는 어떻게 적어야 할까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-28">토막</th>
+                        <th>무엇을 정하는가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">입력</td>
+                        <td>키(cm)와 몸무게(kg) 두 실수를 한 줄에서 받는다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">처리</td>
+                        <td>키 구간으로 표준 몸무게를 구하고, 벗어난 정도를 백분율로 구한다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">출력</td>
+                        <td>정상 &middot; 과체중 &middot; 비만 가운데 한 낱말</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">표준 몸무게 &mdash; 키 구간에 따라 식이 다르다</p>
+                <div class="overflow-x-auto">
+                    <table class="table-prose">
+                        <thead>
+                        <tr>
+                            <th class="w-40">키 구간</th>
+                            <th>표준 몸무게</th>
+                            <th>키 165cm이면</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>150cm 미만</td>
+                            <td>키 &minus; 100</td>
+                            <td>&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>150cm 이상 160cm 미만</td>
+                            <td>(키 &minus; 150) &divide; 2 + 50</td>
+                            <td>&mdash;</td>
+                        </tr>
+                        <tr>
+                            <td>160cm 이상</td>
+                            <td>(키 &minus; 100) &times; 0.9</td>
+                            <td>(165 &minus; 100) &times; 0.9 = 58.5kg</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>벗어난 정도(%) = (실제 몸무게 &minus; 표준 몸무게) &times; 100 &divide; 표준 몸무게</strong>
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">푸는 순서</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>키와 몸무게를 입력받는다.</li>
+                    <li>키가 150 미만이면 표준 몸무게 = 키 &minus; 100</li>
+                    <li>아니고 키가 160 미만이면 표준 몸무게 = (키 &minus; 150) &divide; 2 + 50</li>
+                    <li>둘 다 아니면 표준 몸무게 = (키 &minus; 100) &times; 0.9</li>
+                    <li>벗어난 정도 = (몸무게 &minus; 표준 몸무게) &times; 100 &divide; 표준 몸무게</li>
+                    <li>벗어난 정도가 10 이하면 &ldquo;정상&rdquo;을 내놓는다.</li>
+                    <li>아니고 20 이하면 &ldquo;과체중&rdquo;을 내놓는다.</li>
+                    <li>둘 다 아니면 &ldquo;비만&rdquo;을 내놓는다.</li>
+                </ol>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">&lsquo;아니고&rsquo;가 조건을 줄여 준다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        3번을 그냥 &ldquo;키가 150 이상 160 미만이면&rdquo;이라고 적을 수도 있습니다.
+                        하지만 <strong>2번이 이미 걸러졌으므로</strong> 3번에 이르렀다는 것은 벌써 150 이상이라는 뜻입니다.
+                        <strong>앞에서 걸러진 것을 다시 적지 않는 것</strong>이 조건을 짧고 안전하게 만듭니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">순서를 바꾸면 답이 바뀐다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        6~8번도 같습니다. <strong>&ldquo;20 이하면 과체중&rdquo;을 먼저 검사하면</strong>
+                        벗어난 정도가 5%인 사람도 20 이하이므로 <strong>과체중이 되어 버립니다.</strong>
+                        <strong>좁은 조건을 먼저, 넓은 조건을 나중에</strong> 두어야 합니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                키 <strong>정확히 160cm</strong>인 사람은 위 순서에서 <strong>몇 번 줄</strong>로 갈까요?
+                2번과 3번의 조건을 차례로 대 보며 따라가 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 구현 ===== -->
+    <section id="code" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">3단계 &middot; 파이썬으로 옮기기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">여덟 줄짜리 순서가 코드에서는 어떻게 될까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                <strong>먼저 스스로 적어 본 뒤에 아래를 보세요.</strong>
+                설계가 끝나 있으므로 새로 생각할 것은 없습니다. 순서를 문법으로 바꾸기만 하면 됩니다.
+            </p>
+
+            <div class="space-y-2 min-w-0">
+                <p class="font-bold text-base text-slate-800">bmi.basic.py</p>
+                <div class="code-block"><button class="code-copy" type="button" data-copy aria-label="코드 복사"><i class="fa-solid fa-copy" aria-hidden="true"></i><span>복사</span></button><pre class="language-python"><code class="language-python" data-src="code/bmi.basic.py"># 키와 몸무게를 한 줄에 공백으로 띄어 입력받는다
+height, weight = map(float, input().split())
+
+# 키 구간에 따라 표준 몸무게를 구한다
+if height &lt; 150:
+    sw = height - 100
+elif height &lt; 160:
+    sw = (height - 150) / 2 + 50
+else:
+    sw = (height - 100) * 0.9
+
+# 표준 몸무게에서 얼마나 벗어났는지를 백분율로 구한다
+obesity = (weight - sw) * 100 / sw
+
+# 구간을 위에서부터 차례로 검사한다
+if obesity &lt;= 10:
+    print("정상")
+elif obesity &lt;= 20:
+    print("과체중")
+else:
+    print("비만")</code></pre></div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>첫 줄이 하는 일
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>입력받은 것은 언제나 글자</strong>입니다. &ldquo;170 80&rdquo;이라고 쳤어도 컴퓨터가 받은 것은
+                    <strong>숫자 두 개가 아니라 글자가 늘어선 한 덩어리</strong>입니다.
+                    그래서 <strong>공백에서 잘라 둘로 나누고</strong>, 그 각각을 <strong>수로 바꿔야</strong> 계산할 수 있습니다.
+                    첫 줄이 그 셋을 한꺼번에 합니다. 풀어 쓰면 이렇게 됩니다.
+                </p>
+                <div class="space-y-2 min-w-0">
+                    <div class="code-block"><button class="code-copy" type="button" data-copy aria-label="코드 복사"><i class="fa-solid fa-copy" aria-hidden="true"></i><span>복사</span></button><pre class="language-python"><code class="language-python" data-src="code/bmi.input-parse.py"># map을 쓰지 않고 한 줄씩 풀어 쓰면 이렇게 된다
+data = input().split()   # "170 80" -&gt; ['170', '80'] 문자열 두 개
+height = float(data[0])  # 첫째 값을 실수로 바꾼다
+weight = float(data[1])  # 둘째 값을 실수로 바꾼다</code></pre></div>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>정수가 아니라 실수로 바꾸는 것</strong>에 유의합니다.
+                    정수로 받으면 요구 사항 1번의 &lsquo;소수점이 있어도 받는다&rsquo;를 어기게 됩니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">설계의 여덟 줄이 어디로 갔나</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    설계 2~4번이 <strong>첫 번째 조건 덩어리</strong>가 되고, 5번이 <strong>가운데 한 줄</strong>,
+                    6~8번이 <strong>두 번째 조건 덩어리</strong>가 되었습니다.
+                    <strong>줄 수도 순서도 설계와 그대로 맞습니다.</strong>
+                    설계를 제대로 해 두면 구현이 이렇게 옮겨 적는 일이 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                벗어난 정도를 구하는 줄에서 <strong>괄호를 빼면</strong> 어떻게 될까요?
+                곱하기와 나누기가 빼기보다 먼저 계산된다는 것을 떠올려 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 테스트 ===== -->
+    <section id="test" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">4단계 &middot; 넣어 보고 확인하기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">이 프로그램에서 틀리기 쉬운 자리는 어디일까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                조건이 갈리는 자리가 <strong>다섯 군데</strong>입니다 &mdash;
+                키에서 150과 160, 판정에서 10과 20. <strong>경계마다 값을 넣어 봐야</strong> 합니다.
+                아래 표의 &lsquo;나와야 할 결과&rsquo;는 <strong>돌려 보기 전에 손으로 계산해 적은 것</strong>입니다.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-32">넣은 값</th>
+                        <th class="w-24">표준</th>
+                        <th class="w-28">벗어난 정도</th>
+                        <th>나와야 할 결과</th>
+                        <th>무엇을 보려는 값인가</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>170 80</td>
+                        <td>63.0</td>
+                        <td>약 26.98%</td>
+                        <td class="font-bold">비만</td>
+                        <td>160 이상 구간이 도는지</td>
+                    </tr>
+                    <tr>
+                        <td>170 69</td>
+                        <td>63.0</td>
+                        <td>약 9.52%</td>
+                        <td class="font-bold">정상</td>
+                        <td>10% 경계 바로 아래</td>
+                    </tr>
+                    <tr>
+                        <td>170 70</td>
+                        <td>63.0</td>
+                        <td>약 11.11%</td>
+                        <td class="font-bold">과체중</td>
+                        <td>10% 경계 바로 위</td>
+                    </tr>
+                    <tr>
+                        <td>155 53</td>
+                        <td>52.5</td>
+                        <td>약 0.95%</td>
+                        <td class="font-bold">정상</td>
+                        <td>150~160 구간이 도는지</td>
+                    </tr>
+                    <tr>
+                        <td>140 40</td>
+                        <td>40.0</td>
+                        <td>0%</td>
+                        <td class="font-bold">정상</td>
+                        <td>150 미만 구간, 딱 0%</td>
+                    </tr>
+                    <tr>
+                        <td>160 54</td>
+                        <td>54.0</td>
+                        <td>0%</td>
+                        <td class="font-bold">정상</td>
+                        <td>키 경계 160이 어느 쪽으로 가는지</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">결과가 어긋났다면 여기부터 봅니다</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>모든 값이 &lsquo;비만&rsquo;으로 나온다</strong> &mdash;
+                        벗어난 정도를 구하는 줄에서 괄호가 빠졌는지 봅니다. 값이 엉뚱하게 커집니다
+                    </li>
+                    <li><strong>정상이 나와야 할 값이 과체중으로 나온다</strong> &mdash;
+                        판정 조건의 순서가 뒤집혔거나 <strong>&lsquo;이하&rsquo;를 &lsquo;미만&rsquo;으로</strong> 적었는지 봅니다
+                    </li>
+                    <li><strong>키 155에서 엉뚱한 값이 나온다</strong> &mdash;
+                        가운데 구간 식에서 나누기와 더하기의 순서를 봅니다
+                    </li>
+                    <li><strong>소수점 있는 키를 넣으면 멈춘다</strong> &mdash;
+                        실수가 아니라 정수로 바꾸고 있는지 봅니다
+                    </li>
+                </ul>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>2-2에서 배운 대로</strong> 어느 값에서 어긋났는지 적어 두고,
+                    맞는 지점과 틀린 지점 사이를 좁혀 갑니다.
+                    이 프로그램은 짧으니 <strong>표준 몸무게가 제대로 나왔는지만 먼저 확인해도</strong> 범위가 절반으로 줄어듭니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>여섯 줄을 다 통과해도
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>&ldquo;넣어 본 값에서는 문제가 없었다&rdquo;</strong>까지입니다.
+                    이를테면 <strong>몸무게 자리에 0</strong>을 넣으면 어떻게 되는지, <strong>키에 0</strong>을 넣으면 어떻게 되는지는
+                    아직 넣어 보지 않았습니다.
+                    키가 0이면 표준 몸무게가 0이 되어 <strong>0으로 나누게 됩니다.</strong>
+                    요구 사항에 적어 두지 않았으니 <strong>고칠 곳이 코드가 아니라 1단계</strong>입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                표에 <strong>한 줄을 더 보태 보세요.</strong> 20% 경계를 확인하려면
+                키 170에 몸무게를 얼마로 넣어야 할까요? 표준 몸무게 63.0에서 거꾸로 계산해 보면 됩니다.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 더 해 보기 ===== -->
+    <section id="more" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">더 해 보기</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">1단계에서 미뤄 둔 것을 이제 되돌려 봅시다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                요구 사항 6번에서 <strong>표준보다 가벼운 경우를 따로 다루지 않기로</strong> 정했습니다.
+                그래서 지금 프로그램은 표준보다 훨씬 가벼운 값을 넣어도 <strong>&lsquo;정상&rsquo;이라고 답합니다.</strong>
+                벗어난 정도가 음수여도 <strong>10 이하라는 조건에 걸리기</strong> 때문입니다.
+            </p>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">과제 &mdash; 요구 사항부터 고친다</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    &lsquo;저체중&rsquo;을 하나 더 알려 주도록 바꿔 봅시다.
+                    <strong>코드부터 열지 말고 1단계로 돌아가</strong> 요구 사항 6번을 고쳐 적는 것에서 시작합니다.
+                    그다음 설계의 판정 부분을 고치고, 마지막에 코드를 손댑니다.
+                    <strong>테스트 표에도 줄을 더해야</strong> 합니다 &mdash; 저체중이 나와야 할 값을 미리 정해 두세요.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-lightbulb text-orange-500 mr-1"></i>스스로 해 본 뒤에 펼쳐 보세요
+                </p>
+                <details>
+                    <summary class="font-bold text-base text-orange-700">
+                        <i class="fa-solid fa-chevron-right details-chevron mr-1"></i>더 알아보기: 저체중까지 판정하는 코드
+                    </summary>
+                    <div class="pt-4 space-y-3">
+                        <p class="text-base text-slate-700 leading-relaxed">
+                            <strong>새 조건을 맨 앞에 두는 것</strong>이 요점입니다.
+                            아래로 내려가면 음수가 &lsquo;10 이하&rsquo;에 먼저 걸려 정상으로 나가 버립니다.
+                            설계에서 &ldquo;좁은 조건을 먼저&rdquo;라고 한 것이 여기서 그대로 쓰입니다.
+                        </p>
+                        <div class="space-y-2 min-w-0">
+                            <p class="font-bold text-base text-slate-800">bmi.extended.py</p>
+                            <div class="code-block"><button class="code-copy" type="button" data-copy aria-label="코드 복사"><i class="fa-solid fa-copy" aria-hidden="true"></i><span>복사</span></button><pre class="language-python"><code class="language-python"
+                                                                data-src="code/bmi.extended.py">height, weight = map(float, input().split())
+
+if height &lt; 150:
+    sw = height - 100
+elif height &lt; 160:
+    sw = (height - 150) / 2 + 50
+else:
+    sw = (height - 100) * 0.9
+
+obesity = (weight - sw) * 100 / sw
+
+# 음수를 먼저 걸러 낸다. 이 줄이 아래로 내려가면 저체중이 정상에 먹힌다
+if obesity &lt; 0:
+    print("저체중")
+elif obesity &lt;= 10:
+    print("정상")
+elif obesity &lt;= 20:
+    print("과체중")
+else:
+    print("비만")</code></pre></div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                <p class="font-black text-lg text-orange-900">한 걸음 더</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li>판정만 내놓지 말고 <strong>표준 몸무게와 벗어난 정도까지 함께</strong> 보여 주기</li>
+                    <li>키에 0이나 음수가 들어왔을 때 <strong>계산하지 않고 안내만</strong> 하기 (요구 사항부터 고칠 것)</li>
+                    <li>벗어난 정도를 <strong>소수점 첫째 자리까지만</strong> 보여 주기</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                이번 실습에서 <strong>코드를 적은 시간</strong>과 <strong>무엇을 만들지 정하고 순서를 짠 시간</strong> 중
+                어느 쪽이 길었나요? 2-1에서 &ldquo;코딩은 programming의 한 단계&rdquo;라고 한 말을 다시 읽어 보세요.
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+<script>
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-copy]');
+        if (!btn) return;
+        const code = btn.closest('.code-block')?.querySelector('pre');
+        if (!code) return;
+        const text = code.textContent;
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            // file://은 보안 컨텍스트가 아니라 navigator.clipboard가 없다.
+            // 오프라인 zip을 그대로 여는 학생이 있으므로 폴백을 지우지 않는다.
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;opacity:0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } finally { ta.remove(); }
+        }
+        btn.classList.add('is-done');
+        const label = btn.querySelector('span');
+        const before = label.textContent;
+        label.textContent = '복사됨';
+        setTimeout(() => { label.textContent = before; btn.classList.remove('is-done'); }, 1500);
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+import"../../modulepreload-polyfill-P2Xu9kJm.js";/* empty css                      */import{t as e}from"../../vis-network-DZg41OXt.js";window.vis=e;

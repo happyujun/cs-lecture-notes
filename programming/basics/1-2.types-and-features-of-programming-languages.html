@@ -1,0 +1,936 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>programming 언어의 종류와 특징</title>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+  <script type="module" src="../../assets/programming/basics/1-2.types-and-features-of-programming-languages.html-4ObsopSX.js"></script>
+  <link rel="modulepreload" href="../../assets/modulepreload-polyfill-P2Xu9kJm.js">
+  <link rel="modulepreload" href="../../assets/rolldown-runtime-Dd_uD5pT.js">
+  <link rel="modulepreload" href="../../assets/prism-Bqfy9DnD.js">
+  <link rel="modulepreload" href="../../assets/prism-python.min-CfiSVtM6.js">
+  <link rel="modulepreload" href="../../assets/prism-c.min-04YixN25.js">
+  <link rel="stylesheet" href="../../assets/programming-BrBKhrwB.css">
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-layer-group absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-language absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">programming</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            programming 언어의 종류와 특징
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            언어가 하나면 편할 텐데<br>
+            <strong>왜 이렇게 많이</strong> 만들어졌을까요?
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>하드웨어와 얼마나 가까운지에 따라 저급 언어와 고급 언어를 구분하고, 각각의 예를 들 수 있다.</li>
+                    <li>컴파일러와 인터프리터가 번역하는 시점과 방식이 어떻게 다른지 비교해 설명할 수 있다.</li>
+                    <li>주요 programming 언어의 특징을 알고, 무엇을 만들 것인지에 따라 언어를 고르는 기준을 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-layer-group text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">언어의 종류와 특징</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#level" class="hover:text-orange-600 transition">저급과 고급</a>
+            <a href="#translator" class="hover:text-orange-600 transition">번역기 두 갈래</a>
+            <a href="#languages" class="hover:text-orange-600 transition">주요 언어</a>
+            <a href="#choose" class="hover:text-orange-600 transition">무엇으로 고르나</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 저급 언어와 고급 언어 ===== -->
+    <section id="level" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">하드웨어에 가까운 언어, 사람에 가까운 언어</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">언어를 가르는 첫 번째 기준은 무엇일까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지난 시간에 사람의 말과 기계어 사이에 programming 언어를 두었습니다.
+                그런데 그 &lsquo;사이&rsquo;가 한 자리는 아닙니다.
+                <strong>기계 쪽에 바짝 붙은 언어</strong>도 있고 <strong>사람 쪽에 가까운 언어</strong>도 있습니다.
+                이 거리로 나눈 것이 <strong>저급 언어(low-level language)</strong>와
+                <strong>고급 언어(high-level language)</strong>입니다.
+            </p>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>&lsquo;저급&rsquo;은 나쁘다는 뜻이 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    여기서 <strong>낮고 높은 것은 품질이 아니라 하드웨어로부터의 거리</strong>입니다.
+                    하드웨어에 가까우면 저급, 사람의 말에 가까우면 고급입니다.
+                    그래서 <strong>&ldquo;고급 언어가 더 좋은 언어&rdquo;라는 말은 성립하지 않습니다.</strong>
+                    지금도 저급 언어가 아니면 못 하는 일이 있습니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-slate-800 border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-white">저급 언어</p>
+                    <p class="text-base text-slate-200 leading-relaxed">
+                        하드웨어가 알아듣는 방식에 맞춰 적는 언어입니다.
+                        <strong>부품을 직접 다룰 수 있고</strong> 낭비 없이 돌게 만들 수 있습니다.
+                        대신 사람이 읽고 쓰기 어렵고, <strong>기계가 달라지면 그대로 쓸 수 없습니다.</strong>
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-200 list-disc list-outside pl-5">
+                        <li><strong>기계어</strong> &mdash; 0과 1로 된 명령. 부품이 그대로 받는다</li>
+                        <li><strong>어셈블리어(assembly language)</strong> &mdash; 기계어의 명령 하나하나에
+                            사람이 읽을 수 있는 짧은 이름을 붙인 것
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-3">
+                    <p class="font-black text-lg text-orange-900">고급 언어</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        사람이 쓰는 말과 수식에 가깝게 적는 언어입니다.
+                        <strong>배우기 쉽고 짧게 적을 수 있으며</strong>,
+                        같은 코드를 <strong>여러 종류의 기계에서 쓸 수 있는 경우가 많습니다.</strong>
+                        대신 부품을 세세히 다루는 일은 언어가 대신 처리해 버려 손이 덜 닿습니다.
+                    </p>
+                    <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                        <li>이 과목에서 다루는 <strong>C</strong>와 <strong>Python</strong>이 모두 여기 속한다</li>
+                        <li>둘 다 고급 언어이지만 <strong>하드웨어와의 거리는 서로 다르다</strong></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>둘 사이는 선이 아니라 띠입니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    저급과 고급은 <strong>어디까지가 저급인지 딱 떨어지는 경계가 있는 구분이 아닙니다.</strong>
+                    같은 고급 언어끼리도 하드웨어에 더 가까운 쪽과 더 먼 쪽이 있습니다.
+                    <strong>두 이름은 위치를 가늠하는 말</strong>이라고 보면 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;요즘은 고급 언어가 있으니 저급 언어는 필요 없다&rdquo;라는 말은 왜 성립하지 않을까요?
+                위 두 카드에서 <strong>저급 언어만 할 수 있는 일</strong>을 찾아 근거로 삼아 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 번역기 두 갈래 ===== -->
+    <section id="translator" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">컴파일러와 인터프리터</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">지난 시간에 이름을 미뤄 둔 두 갈래에 이름을 붙일 차례입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                지난 시간에 번역하는 방식이 <strong>한꺼번에 옮겨 두는 쪽</strong>과
+                <strong>한 줄씩 읽어 가는 쪽</strong> 두 갈래라고만 해 두었습니다. 각각의 이름이 이것입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">컴파일러(compiler)</p>
+                    <p class="text-base font-medium text-slate-500">한꺼번에 옮겨 두는 쪽</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        소스 코드 <strong>전체를 미리 번역</strong>해 실행 파일을 만들어 둡니다.
+                        번역하는 동안 규칙에 어긋난 곳을 <strong>실행하기 전에 모아서</strong> 알려 줍니다.
+                        만들어 둔 실행 파일은 <strong>번역기 없이도 실행</strong>할 수 있습니다.
+                    </p>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-sky-900">인터프리터(interpreter)</p>
+                    <p class="text-base font-medium text-slate-500">한 줄씩 읽어 가는 쪽</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        실행하는 그 자리에서 <strong>한 줄씩 읽어 바로 처리</strong>합니다.
+                        미리 만들어 두는 단계가 없어 <strong>고친 것을 곧바로 확인</strong>하기 편합니다.
+                        대신 <strong>실행할 때마다 인터프리터가 함께 있어야</strong> 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-prose">
+                    <thead>
+                    <tr>
+                        <th class="w-44">무엇이 다른가</th>
+                        <th>컴파일러</th>
+                        <th>인터프리터</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td class="font-bold">번역하는 때</td>
+                        <td>실행하기 전에 전체를</td>
+                        <td>실행하는 중에 한 줄씩</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">규칙 오류를 만나는 때</td>
+                        <td>실행 전, 모아서 알려 준다</td>
+                        <td>그 줄에 이르렀을 때 멈춘다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">고쳐 가며 확인하기</td>
+                        <td>고칠 때마다 다시 만들어야 한다</td>
+                        <td>고치고 바로 실행해 볼 수 있다</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold">실행할 때 필요한 것</td>
+                        <td>만들어 둔 실행 파일</td>
+                        <td>소스 코드와 인터프리터</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>속도는 어느 쪽이 빠른가요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    미리 번역해 둔 쪽이 실행할 때 할 일이 적으므로 <strong>대체로 실행이 빠른 편</strong>입니다.
+                    다만 <strong>언제나 그런 것은 아닙니다.</strong> 같은 언어라도 번역기를 어떻게 만들었느냐에 따라 달라지고,
+                    프로그램이 실제로 오래 걸리는 이유가 번역 방식이 아니라 <strong>짜 놓은 방법 자체에 있는 경우가 훨씬 많습니다.</strong>
+                    &lsquo;어느 쪽이 빠르다&rsquo;를 외우기보다 <strong>왜 그런 차이가 생기는지</strong>를 잡아 두는 편이 낫습니다.
+                </p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>언어가 방식을 정하는 것은 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    &ldquo;이 언어는 컴파일 언어, 저 언어는 인터프리터 언어&rdquo;라고 짝지어 외우기 쉽지만,
+                    <strong>번역 방식은 언어가 아니라 그 언어를 처리하는 도구가 정합니다.</strong>
+                    같은 언어를 두고 두 방식의 도구가 모두 나와 있기도 하고, 두 방식을 섞어 쓰는 도구도 있습니다.
+                    <strong>어느 쪽이 흔한지</strong>와 <strong>어느 쪽만 가능한지</strong>는 다른 이야기입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                코드를 조금씩 바꿔 가며 결과를 계속 확인해야 하는 상황이라면 어느 쪽이 편할까요?
+                위 표의 <strong>&lsquo;고쳐 가며 확인하기&rsquo;</strong> 줄을 근거로 들어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 주요 언어 ===== -->
+    <section id="languages" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">지금 많이 쓰이는 언어들</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">저마다 어떤 자리에서 잘 쓰이고 있을까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                세상에 나와 있는 programming 언어는 아주 많습니다.
+                하나하나가 <strong>그때 풀어야 했던 문제에 맞춰 만들어졌기</strong> 때문에,
+                생김새도 잘하는 일도 서로 다릅니다. 여기서는 학교에서 자주 만나게 되는 것들만 봅니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">C</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        운영 체제를 만들려고 나온 언어라 <strong>하드웨어에 손이 닿는 편</strong>입니다.
+                        메모리를 어떻게 쓸지 프로그래머가 직접 정하므로
+                        <strong>작고 빠르게 만들 수 있는 대신 신경 쓸 것이 많습니다.</strong>
+                        운영 체제, 기계 안에 들어가는 프로그램처럼 <strong>자원이 빠듯한 자리</strong>에 쓰입니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">Python</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        문법이 간결해서 <strong>같은 일을 짧게 적을 수 있습니다.</strong>
+                        남이 만들어 둔 기능 묶음이 풍부해 <strong>가져다 쓰기 쉬운 것</strong>이 큰 장점입니다.
+                        데이터 분석, 인공지능, 자동화처럼 <strong>빨리 만들어 보고 고쳐 가는 일</strong>에 많이 쓰입니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">Java</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>한 번 만든 것을 여러 운영 체제에서 그대로 쓰는 것</strong>을 목표로 설계됐습니다.
+                        규모가 큰 프로그램을 여러 사람이 나눠 만들 때 쓰기 좋은 구조를 갖추고 있어,
+                        <strong>기업용 시스템과 안드로이드 앱</strong> 쪽에서 널리 쓰입니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">JavaScript</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        <strong>웹 브라우저가 직접 실행할 수 있는 언어</strong>입니다.
+                        버튼을 눌렀을 때 화면이 바뀌는 것 같은 웹 페이지의 움직임을 맡습니다.
+                        지금은 브라우저 밖에서도 쓰이지만, <strong>브라우저 안에서 도는 자리</strong>가 여전히 대표적입니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">PHP</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        웹 페이지를 <strong>서버 쪽에서 만들어 내보내는 일</strong>을 위해 나온 언어입니다.
+                        HTML 안에 끼워 넣어 쓸 수 있고 데이터베이스와 붙이기 쉬워,
+                        <strong>게시판처럼 내용이 바뀌는 웹 사이트</strong>를 만드는 데 오래 쓰여 왔습니다.
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">Scratch</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        글자를 치는 대신 <strong>블록을 끌어다 맞추는 방식</strong>의 교육용 언어입니다.
+                        문법을 틀릴 일이 없으니 <strong>순서를 짜는 일 자체에 집중</strong>할 수 있습니다.
+                        문법이 쉬워서 초보용인 것이 아니라, <strong>문법 걱정을 아예 없앤 것</strong>이 요점입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <p class="font-bold text-base text-slate-800">같은 일을 시켜 보면</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    화면에 &ldquo;안녕하세요&rdquo;라고 한 줄 띄우는, 가장 단순한 프로그램입니다.
+                    <strong>지금 문법을 읽을 필요는 없습니다.</strong> 생김새가 얼마나 다른지만 보면 됩니다.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="space-y-2 min-w-0">
+                        <p class="font-bold text-base text-slate-800">C</p>
+                        <div class="code-block"><button class="code-copy" type="button" data-copy aria-label="코드 복사"><i class="fa-solid fa-copy" aria-hidden="true"></i><span>복사</span></button><pre class="language-c"><code class="language-c" data-src="code/1-2.greeting.c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    printf("안녕하세요\n");
+    return 0;
+}</code></pre></div>
+                    </div>
+                    <div class="space-y-2 min-w-0">
+                        <p class="font-bold text-base text-slate-800">Python</p>
+                        <div class="code-block"><button class="code-copy" type="button" data-copy aria-label="코드 복사"><i class="fa-solid fa-copy" aria-hidden="true"></i><span>복사</span></button><pre class="language-python"><code class="language-python" data-src="code/1-2.greeting.py">print("안녕하세요")</code></pre></div>
+                    </div>
+                </div>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    한쪽은 다섯 줄, 다른 쪽은 한 줄입니다.
+                    <strong>C가 쓸데없이 길게 적는 것이 아닙니다</strong> &mdash;
+                    프로그램이 어디서 시작하는지, 어떤 기능을 끌어다 쓸 것인지를
+                    <strong>프로그래머가 직접 적도록 되어 있는 언어</strong>이기 때문입니다.
+                    Python은 그 부분을 언어가 대신 정해 둔 것입니다.
+                    <strong>드러나는 것이 많은 대신 손이 가고, 감춰진 것이 많은 대신 손이 덜 간다</strong>는
+                    맞바꿈이 이 다섯 줄에 이미 들어 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                위 여섯 언어 가운데 <strong>&ldquo;한 번 만들어 여러 운영 체제에서 쓰는 것&rdquo;</strong>을
+                목표로 삼은 언어는 어느 것이었나요? 그리고 그 목표가 왜 필요했을지 짐작해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 무엇으로 고르나 ===== -->
+    <section id="choose" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">언어는 무엇을 보고 고를까</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">가장 좋은 언어를 고르는 것이 아니라면, 무엇을 보는 걸까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                언어에는 <strong>모든 자리에서 가장 나은 하나</strong>가 없습니다.
+                어떤 언어가 잘하는 일은 대개 <strong>다른 것을 내려놓아서 얻은 것</strong>이기 때문입니다.
+                그래서 고를 때 묻는 것은 &ldquo;어느 것이 좋은가&rdquo;가 아니라
+                <strong>&ldquo;지금 만들려는 것에 무엇이 맞는가&rdquo;</strong>입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">무엇을 만드는가</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        웹 페이지에서 도는 것인지, 기계 안에 들어가는 것인지, 데이터를 분석하는 것인지에 따라
+                        <strong>애초에 그 자리에서 돌 수 있는 언어</strong>가 정해지는 경우가 있습니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">어디서 실행되는가</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        메모리가 빠듯한 작은 기계인지, 여러 운영 체제에서 함께 써야 하는지를 봅니다.
+                        <strong>실행되는 환경이 언어를 먼저 걸러 냅니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">가져다 쓸 것이 있는가</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        하려는 일을 <strong>이미 남이 만들어 둔 기능 묶음</strong>이 있다면 처음부터 짤 이유가 없습니다.
+                        같은 일을 해도 언어에 따라 남의 힘을 얼마나 빌릴 수 있는지가 크게 다릅니다.
+                    </p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-slate-900">함께 만드는 사람들</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        혼자 만들 것이 아니라면 <strong>같이 만드는 사람들이 읽고 고칠 수 있는 언어</strong>여야 합니다.
+                        이미 만들어 둔 프로그램에 이어 붙이는 일이라면 선택의 여지가 없기도 합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>그럼 처음에는 무엇을 배워야 하나요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    처음 배우는 언어를 무엇으로 하느냐는 <strong>생각만큼 중요하지 않습니다.</strong>
+                    순서를 짜는 일, 조건을 나누는 일, 되풀이하는 일은 <strong>언어가 달라져도 거의 그대로</strong>이기 때문입니다.
+                    한 언어를 제대로 익혀 두면 다음 언어는 문법 차이를 확인하는 정도로 넘어가는 경우가 많습니다.
+                    이 과목이 <strong>언어와 상관없는 이야기를 먼저 하고 문법을 나중에 두는 이유</strong>가 여기 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                교실 온도를 재서 자동으로 알려 주는 작은 장치를 만든다고 해 봅시다.
+                위 네 가지 가운데 <strong>어느 기준이 가장 먼저 걸림돌이 될지</strong> 하나만 골라 이유를 적어 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">저급 언어와 고급 언어</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">기준은 하드웨어로부터의 거리</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>저급 = <strong>기계어 &middot; 어셈블리어</strong>, 부품을 직접 다룬다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>고급 = 사람의 말에 가깝고 <strong>여러 기계에서 쓰기 쉽다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>낮고 높은 것은 <strong>품질이 아니고</strong>, 둘의 경계도 선이 아니다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-orange-500">
+                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">컴파일러와 인터프리터</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">번역하는 때가 다르다</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>컴파일러</strong>는 실행 전에 전체를 옮겨 실행 파일을 만든다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>인터프리터</strong>는 실행 중에 한 줄씩 읽어 처리한다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>방식은 <strong>언어가 아니라 도구가 정한다</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">주요 언어</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">저마다 무엇을 내려놓았나</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>C</strong>는 손이 많이 가는 대신 하드웨어에 닿는다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>Python</strong>은 짧게 적는 대신 세부를 언어에 맡긴다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>잘하는 일은 대개 <strong>다른 것을 내려놓아 얻은 것</strong>이다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">언어를 고르는 기준</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">좋은 언어가 아니라 맞는 언어</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>무엇을 만드는가 &middot; 어디서 실행되는가</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>가져다 쓸 것이 있는가 &middot; 함께 만드는 사람들</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>순서 &middot; 조건 &middot; 반복은 <strong>언어가 달라져도 거의 그대로</strong>다</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-orange-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    저급 언어와 고급 언어에 대한 설명으로 <strong>옳지 않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 기계어와 어셈블리어가 저급 언어에 해당합니다.')">
+                    ① 기계어와 어셈블리어는 저급 언어에 해당한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '이것이 옳지 않습니다. 낮고 높은 것은 품질이 아니라 하드웨어로부터의 거리를 가리킵니다. 저급 언어가 아니면 못 하는 일도 있습니다.')">
+                    ② 고급 언어는 저급 언어보다 모든 면에서 뛰어난 언어다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 저급 언어는 기계가 달라지면 그대로 쓰기 어렵습니다.')">
+                    ③ 저급 언어로 적은 것은 기계가 달라지면 그대로 쓰기 어렵다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 둘의 경계는 딱 떨어지는 선이 아니라 위치를 가늠하는 말입니다.')">
+                    ④ 어디까지가 저급인지 딱 떨어지는 경계가 있는 것은 아니다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-orange-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>인터프리터</strong>의 특징으로 알맞은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실행 전에 전체를 번역해 실행 파일을 만드는 쪽은 컴파일러입니다.')">
+                    ① 실행하기 전에 소스 코드 전체를 번역해 둔다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 한 줄씩 읽어 가므로 문제가 있는 줄에 이르렀을 때 멈춥니다.')">
+                    ② 규칙에 어긋난 줄에 이르렀을 때 그 자리에서 멈춘다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '만들어 둔 실행 파일만으로 돌릴 수 있는 쪽은 컴파일러입니다. 인터프리터는 실행할 때마다 함께 있어야 합니다.')">
+                    ③ 번역기 없이 실행 파일만으로 돌릴 수 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '고칠 때마다 다시 만들어야 하는 쪽은 컴파일러입니다.')">
+                    ④ 코드를 고칠 때마다 실행 파일을 다시 만들어야 한다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-orange-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    언어를 고르는 일에 대한 설명으로 <strong>옳지 않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '이것이 옳지 않습니다. 어떤 언어가 잘하는 일은 대개 다른 것을 내려놓아 얻은 것이라, 모든 자리에서 가장 나은 하나는 없습니다.')">
+                    ① 어떤 자리에서든 가장 나은 언어 하나가 정해져 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 실행되는 환경이 쓸 수 있는 언어를 먼저 걸러 내는 경우가 있습니다.')">
+                    ② 어디서 실행되는지가 언어를 먼저 걸러 내기도 한다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 이미 만들어 둔 기능 묶음이 있으면 처음부터 짤 이유가 없습니다.')">
+                    ③ 가져다 쓸 것이 얼마나 있는지도 고르는 기준이 된다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 순서와 조건과 반복을 다루는 방식은 언어가 달라져도 거의 그대로입니다.')">
+                    ④ 한 언어를 익혀 두면 다음 언어로 옮겨 가기가 수월하다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+<script>
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-copy]');
+        if (!btn) return;
+        const code = btn.closest('.code-block')?.querySelector('pre');
+        if (!code) return;
+        const text = code.textContent;
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            // file://은 보안 컨텍스트가 아니라 navigator.clipboard가 없다.
+            // 오프라인 zip을 그대로 여는 학생이 있으므로 폴백을 지우지 않는다.
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;opacity:0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } finally { ta.remove(); }
+        }
+        btn.classList.add('is-done');
+        const label = btn.querySelector('span');
+        const before = label.textContent;
+        label.textContent = '복사됨';
+        setTimeout(() => { label.textContent = before; btn.classList.remove('is-done'); }, 1500);
+    });
+</script>
+</body>
+</html>

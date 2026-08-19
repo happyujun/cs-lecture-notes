@@ -1,0 +1,880 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>programming 개발 환경</title>
+    <style>
+        /* 코드·모노스페이스 요소의 한글이 시스템 기본 글꼴로 떨어지는 것을 막는다.
+           라틴 문자는 모노스페이스, 한글은 Pretendard로 렌더링된다.
+
+           `code, pre`처럼 요소 선택자만 쓰면 Tailwind CDN이 나중에 주입하는 Preflight의
+           동일 특이도 규칙(`code,kbd,samp,pre{font-family:...}`)에 밀려 한글이 시스템
+           글꼴로 떨어진다. 그래서 `body`를 붙여 특이도를 한 단계 올린다. */
+        body code, body kbd, body samp, body pre,
+        body .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+            "Courier New", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo",
+            "Malgun Gothic", monospace;
+        }
+
+        body pre {
+            overflow-x: auto; /* 넘치는 줄은 코드 블록 안에서만 가로 스크롤 */
+            max-width: 100%;
+            min-width: 0; /* flex 자식일 때 정상적으로 줄어들도록 */
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+            "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-btn {
+            width: 100%;
+            padding: 1.25rem;
+            text-align: left;
+            border-radius: 1rem;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .quiz-btn:hover {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .quiz-btn.correct {
+            background: #ea580c;
+            color: white;
+            border-color: #ea580c;
+        }
+
+        .quiz-btn.wrong {
+            background: #f43f5e;
+            color: white;
+            border-color: #f43f5e;
+        }
+
+        .quiz-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        thead th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        tbody tr:hover {
+            background-color: #fff7ed;
+        }
+
+        /* 375px에서 본문이 긴 셀이 100px 안팎으로 눌려 세로 리본처럼 찌그러진다.
+           `table{width:100%}` 때문에 래퍼가 있어도 넘치지 않고 눌리기 때문이다.
+           최소 너비를 주면 눌리는 대신 래퍼(.overflow-x-auto) 안에서 가로 스크롤된다.
+           값이 짧은 2열 표에는 붙이지 않는다. 굳이 넓힐 이유가 없다. */
+        table.table-prose {
+            min-width: 32rem;
+        }
+
+        /* 프로그램·사이트 안의 고유 이름을 본문과 구별해 표시한다.
+
+           `font-mono`를 쓰지 않는다. 화면에 적힌 이름은 코드가 아니라서 모노스페이스로 두면
+           코드처럼 읽히고 한글 본문과 글꼴이 튀어 문장이 끊긴다.
+           `inline-block` + `nowrap`은 긴 이름이 375px를 뚫으므로 쓰지 않는다. */
+        .widget-name,
+        .attr-name {
+            display: inline;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            padding: 0.05rem 0.45rem;
+            letter-spacing: 0.01em;
+        }
+
+        .widget-name { /* 메뉴 이름 · 설정 이름 */
+            color: #6b21a8;
+            background: #f3e8ff;
+            border: 1px solid #d8b4fe;
+        }
+
+        .attr-name { /* 파일명 · 속성명 */
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* 외부 사이트 주소는 반드시 눌러서 갈 수 있어야 한다. 학생이 주소를 손으로 옮겨 적게 두지 않는다.
+           긴 주소가 375px를 뚫으므로 break-all을 함께 준다. */
+        a.ext-link {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+
+        a.ext-link:hover {
+            color: #312e81;
+        }
+
+        /* 차트 예시 그림. 글자를 넣지 않고 도형만 그린 뒤 설명은 HTML로 붙인다.
+           SVG 안의 글자는 375px에서 뷰박스와 함께 줄어들어 최소 글자 크기 규칙을 어긴다. */
+        .chart-svg {
+            width: 100%;
+            height: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details[open] > summary .details-chevron {
+            transform: rotate(90deg);
+        }
+
+        .details-chevron {
+            transition: transform 0.2s ease;
+        }
+    </style>
+  <link rel="stylesheet" href="../../assets/programming-BrBKhrwB.css">
+</head>
+<body class="text-slate-900">
+
+<!-- ── Hero ── -->
+<header id="intro" class="hero-gradient text-white py-32 px-6 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <i class="fa-solid fa-screwdriver-wrench absolute top-10 left-10 text-8xl transform -rotate-12"></i>
+        <i class="fa-solid fa-users absolute bottom-10 right-10 text-9xl"></i>
+    </div>
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <span class="inline-block px-4 py-1.5 bg-white/20 rounded-full font-bold mb-6 backdrop-blur-sm border border-white/30 text-base">programming</span>
+        <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight break-keep">
+            programming 개발 환경
+        </h1>
+        <p class="text-lg md:text-xl opacity-90 font-medium max-w-2xl mx-auto leading-relaxed">
+            메모장으로도 코드는 적을 수 있는데<br>
+            <strong>왜 따로 도구를 쓸까요?</strong>
+        </p>
+    </div>
+</header>
+
+<!-- ── 학습 목표 배너 ── -->
+<div class="bg-white border-b border-slate-200 px-6 py-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bullseye text-orange-600 text-lg"></i>
+            </div>
+            <div>
+                <p class="font-black text-base text-slate-500 mb-2 uppercase tracking-widest">학습 목표</p>
+                <ol class="space-y-1 text-base font-medium text-slate-800 list-decimal list-outside pl-5">
+                    <li>적어 놓은 코드가 실행 파일이 되기까지의 과정을 단계로 나누어 설명할 수 있다.</li>
+                    <li>통합 개발 환경이 어떤 도구들을 하나로 묶은 것인지 알고, 그것이 필요한 이유를 설명할 수 있다.</li>
+                    <li>중단점을 걸고 한 줄씩 실행해 값을 살펴보는 방법을 설명할 수 있다.</li>
+                    <li>여럿이 함께 만들 때 필요한 것이 무엇인지 알고, 버전 관리가 왜 필요한지 설명할 수 있다.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 네비게이션 ── -->
+<nav class="sticky-nav px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-screwdriver-wrench text-base"></i>
+            </div>
+            <span class="font-black text-xl tracking-tight text-slate-800">programming 개발 환경</span>
+        </div>
+        <div class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 font-bold text-slate-500 text-base">
+            <a href="#build" class="hover:text-orange-600 transition">실행 파일이 되기까지</a>
+            <a href="#ide" class="hover:text-orange-600 transition">통합 개발 환경</a>
+            <a href="#debugger" class="hover:text-orange-600 transition">디버거</a>
+            <a href="#together" class="hover:text-orange-600 transition">여럿이 함께</a>
+            <a href="#quiz" class="hover:text-orange-600 transition">퀴즈</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── 메인 콘텐츠 ── -->
+<main class="max-w-6xl mx-auto px-6 py-20 space-y-24">
+
+    <!-- ===== Section 1: 실행 파일이 되기까지 ===== -->
+    <section id="build" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">적어 놓은 글이 프로그램이 되기까지</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">번역 말고도 거쳐야 할 단계가 하나 더 있습니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                1단원에서 소스 코드가 번역기를 거쳐 실행된다고 했습니다.
+                <strong>미리 번역해 두는 쪽</strong>, 그러니까 컴파일러를 쓰는 경우를 조금 더 들여다보면
+                번역과 실행 사이에 <strong>단계가 하나 더</strong> 있습니다.
+            </p>
+
+            <div class="space-y-3">
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">1. 편집 &mdash; 소스 코드를 적는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        사람이 읽을 수 있는 글자로 코드를 적어 <strong>소스 파일</strong>로 저장합니다.
+                        구현 단계에서 하는 일이 이것입니다.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">2. 컴파일 &mdash; 기계어로 옮긴다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        소스 파일을 기계어로 번역해 <strong>목적 파일</strong>을 만듭니다.
+                        <strong>여기서 문법 오류가 걸립니다.</strong> 규칙에 어긋난 곳이 있으면 이 단계에서 멈춥니다.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">3. 링크 &mdash; 흩어진 것을 이어 붙인다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        목적 파일들과 <strong>남이 미리 만들어 둔 기능 묶음</strong>을 하나로 이어 붙여
+                        <strong>실행 파일</strong>을 만듭니다.
+                        내가 적지 않았는데도 화면에 글자를 띄울 수 있는 것은 이 단계에서 그 기능이 붙기 때문입니다.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">4. 실행 &mdash; 돌려 본다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        만들어진 실행 파일을 돌립니다. <strong>실행 오류와 논리 오류는 여기서부터 드러납니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>왜 번역과 링크를 나누어 두었을까
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    프로그램이 커지면 소스 파일을 여러 개로 나누어 적습니다.
+                    나누어 두면 <strong>고친 파일만 다시 번역하면 되므로</strong> 훨씬 빠릅니다.
+                    번역이 끝난 조각들을 마지막에 한데 모으는 일이 링크입니다.
+                    <strong>2-2에서 본 단위 테스트와 통합 테스트가 이 구조와 닮았습니다</strong> &mdash;
+                    조각을 따로 만들어 확인하고, 이어 붙여서 다시 확인합니다.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>모든 언어가 이 네 단계를 밟는 것은 아닙니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이 네 단계는 <strong>미리 번역해 실행 파일을 만들어 두는 방식</strong>의 이야기입니다.
+                    한 줄씩 읽어 가며 실행하는 방식에서는 <strong>실행 파일을 따로 만들지 않으므로</strong>
+                    목적 파일도 링크도 눈에 보이지 않습니다.
+                    적고 곧바로 돌리는 것처럼 보이지요.
+                    1단원에서 <strong>&ldquo;번역 방식은 언어가 아니라 도구가 정한다&rdquo;</strong>고 한 것을 여기서도 기억해 두면 됩니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                따옴표를 한쪽만 적는 실수를 했다면 <strong>네 단계 중 어디에서 걸릴까요?</strong>
+                2-2에서 배운 오류 세 가지 중 어느 것인지도 함께 말해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 2: 통합 개발 환경 ===== -->
+    <section id="ide" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">도구를 한자리에 모아 둔 것</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">메모장으로도 코드는 적히는데, 무엇이 부족할까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                코드를 적는 것은 글자를 적는 일이므로 어떤 글쓰기 프로그램으로도 됩니다.
+                문제는 <strong>적고 나서 해야 할 일이 많다</strong>는 것입니다.
+                번역기를 따로 불러 번역하고, 오류 메시지에 적힌 줄 번호를 보고 다시 편집기로 돌아가 그 줄을 찾고,
+                고쳐서 저장하고, 또 번역합니다. <strong>도구 사이를 계속 오가야 합니다.</strong>
+            </p>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 도구들을 <strong>한 프로그램 안에 모아 둔 것</strong>이
+                <strong>통합 개발 환경(IDE, Integrated Development Environment)</strong>입니다.
+                &lsquo;통합&rsquo;은 없던 기능을 새로 만들었다는 뜻이 아니라 <strong>따로 있던 것을 한자리에 모았다</strong>는 뜻입니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">편집기</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        코드를 적는 자리입니다. 낱말의 종류에 따라 <strong>색을 달리 칠해 주고</strong>,
+                        적다 만 이름을 <strong>추천해 주고</strong>, 괄호를 안 닫았으면 <strong>그 자리에 표시</strong>해 줍니다.
+                        문법 오류를 <strong>번역하기도 전에</strong> 알아채게 해 줍니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">번역기와 실행</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        단추 하나로 <strong>번역하고 곧바로 실행</strong>합니다.
+                        오류가 나면 메시지의 줄 번호를 누르는 것만으로 <strong>그 줄로 데려다줍니다.</strong>
+                        줄 번호를 눈으로 세어 찾아갈 일이 없습니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">디버거</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        돌아가는 프로그램을 <strong>중간에 세우고 값을 들여다보게</strong> 해 줍니다.
+                        다음 절에서 따로 봅니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">그 밖의 것들</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        파일을 한눈에 보여 주는 목록, 남이 만든 기능 묶음을 받아 오는 기능,
+                        <strong>바꾼 내용을 기록해 두는 기능</strong> 따위가 함께 들어 있는 경우가 많습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">어디에 설치하느냐로 두 갈래</p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>내 컴퓨터에 설치해 쓰는 것</strong>은 기능이 많고 빠르지만 컴퓨터마다 따로 깔아야 하고,
+                    같은 설정을 맞춰 두기가 번거롭습니다.
+                    <strong>웹 브라우저로 접속해 쓰는 것</strong>은 깔 것이 없어 어느 컴퓨터에서든 바로 시작할 수 있지만
+                    <strong>인터넷이 끊기면 손을 놓게 됩니다.</strong>
+                    학교 컴퓨터실처럼 <strong>여러 사람이 번갈아 쓰는 자리</strong>에서는 뒤쪽이 편할 때가 많습니다.
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    <strong>어떤 제품이 있는지는 여기 적지 않습니다.</strong> 이름과 순위가 해마다 바뀌기 때문입니다.
+                    <strong>무엇을 하는 도구인지</strong>를 알아 두면 어느 것을 만나도 같은 자리를 찾을 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                &ldquo;통합 개발 환경을 쓰면 메모장으로는 못 만드는 프로그램을 만들 수 있다&rdquo; &mdash;
+                맞는 말일까요? 위에서 <strong>&lsquo;통합&rsquo;이 무슨 뜻이라고 했는지</strong>를 근거로 답해 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 3: 디버거 ===== -->
+    <section id="debugger" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">돌아가는 프로그램을 멈춰 세운다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">2-2에서 &lsquo;어디까지 맞는지 찾는다&rsquo;고 했던 그 일을 도와주는 도구입니다.</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                디버깅은 <strong>범위를 좁혀 원인을 가두는 일</strong>이라고 했습니다.
+                그러려면 중간에 값이 어떻게 되어 있는지 봐야 하는데,
+                프로그램은 눈 깜짝할 사이에 끝까지 달려가 버립니다.
+                <strong>디버거(debugger)</strong>는 그 달리기를 <strong>원하는 자리에서 세우고 한 걸음씩 움직이게</strong> 해 주는 도구입니다.
+            </p>
+
+            <div class="space-y-3">
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">중단점 &mdash; 여기서 멈춰라</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        줄 번호 옆을 눌러 표시를 걸어 두면 <strong>프로그램이 그 줄에 이르렀을 때 멈춥니다.</strong>
+                        멈춘 상태에서 <strong>그 시점의 값들을 들여다볼 수 있습니다.</strong>
+                        의심스러운 자리 앞에 걸어 두는 것이 요령입니다.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">한 줄씩 실행 &mdash; 한 걸음만</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        멈춘 자리에서 <strong>딱 한 줄만 실행하고 다시 멈춥니다.</strong>
+                        한 걸음마다 값이 어떻게 바뀌는지 보면
+                        <strong>어느 줄에서 값이 어긋나기 시작했는지</strong>가 드러납니다.
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">안으로 들어가기 &mdash; 그 안은 어떤가</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 줄이 <strong>다른 곳에 적어 둔 덩어리를 불러 쓰는 줄</strong>이라면,
+                        그 덩어리를 통째로 지나칠 수도 있고 <strong>안으로 따라 들어가 한 줄씩 볼 수도</strong> 있습니다.
+                        바깥이 맞다는 것을 확인했으면 <strong>안으로 들어가 범위를 더 좁힙니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-white border-l-4 border-l-orange-500 border border-slate-200 rounded-2xl p-5 space-y-1">
+                    <p class="font-black text-lg text-slate-900">끝까지 실행 &mdash; 다음 표시까지 달려라</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        한 걸음씩 가기 답답한 구간은 <strong>다음 중단점까지 한 번에 건너뜁니다.</strong>
+                        <strong>맞다고 확인한 구간에 시간을 쓰지 않는 것</strong>이 좁히기의 요령입니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>값을 화면에 찍어 보는 것과 무엇이 다른가요
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    중간에 값을 화면에 내보내 확인하는 방법도 훌륭합니다. 실제로 많이들 그렇게 합니다.
+                    다만 <strong>확인하려는 자리마다 코드를 넣었다 지워야 하고</strong>,
+                    <strong>지우는 것을 잊으면 그대로 남습니다.</strong>
+                    디버거는 코드를 건드리지 않고 <strong>바깥에서 세워 보는 것</strong>이라 그런 뒤처리가 없습니다.
+                    <strong>둘 중 하나만 옳은 것이 아니라 상황에 따라 골라 씁니다.</strong>
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-amber-900">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>디버거가 잘못된 곳을 찾아 주지는 않습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    이름 때문에 <strong>눌러 두면 오류를 잡아 주는 도구</strong>처럼 들리지만 그렇지 않습니다.
+                    디버거가 하는 일은 <strong>값을 보여 주는 것까지</strong>입니다.
+                    <strong>어느 값이 이상한지 판단하는 것은 사람의 몫</strong>이고,
+                    그러려면 <strong>그 자리에서 값이 얼마여야 하는지를 미리 알고 있어야</strong> 합니다.
+                    2-2에서 &ldquo;나와야 할 결과를 미리 적는다&rdquo;고 한 것과 같은 이야기입니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                간식 나누기에서 &ldquo;한 사람당 2개, 2개 남음&rdquo;이 나왔습니다.
+                중단점을 <strong>어느 줄 앞에 걸어야</strong> 가장 빨리 원인에 닿을까요?
+                2-1의 설계 여섯 줄을 떠올려 보세요.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 4: 여럿이 함께 ===== -->
+    <section id="together" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">혼자 만드는 일이 드물다</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">같은 파일을 둘이 동시에 고치면 어떻게 될까요?</p>
+        </div>
+
+        <div class="section-card space-y-6">
+            <p class="text-base text-slate-700 leading-relaxed">
+                조금이라도 규모가 있는 프로그램은 여러 사람이 나누어 만듭니다.
+                그런데 <strong>파일을 주고받는 것만으로는 금세 엉킵니다.</strong>
+                누구나 한 번쯤 겪어 본 일입니다.
+            </p>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <p class="font-bold text-base text-slate-800">파일을 주고받으면 벌어지는 일</p>
+                <ul class="space-y-2 text-base text-slate-700 list-disc list-outside pl-5">
+                    <li><strong>최종.hwp, 최종2.hwp, 진짜최종.hwp</strong> &mdash; 어느 것이 최신인지 아무도 모른다</li>
+                    <li>둘이 같은 파일을 고쳐 왔다. <strong>한쪽 것을 덮어쓰면 그 사람 작업이 사라진다</strong></li>
+                    <li>어제까지 되던 것이 안 된다. <strong>무엇이 언제 바뀌었는지 알 방법이 없다</strong></li>
+                    <li>고쳐 봤는데 더 나빠졌다. <strong>어제 상태로 되돌리고 싶은데 되돌릴 수가 없다</strong></li>
+                </ul>
+            </div>
+
+            <p class="text-base text-slate-700 leading-relaxed">
+                이 넷을 한꺼번에 푸는 것이 <strong>버전 관리 시스템(version control system)</strong>입니다.
+                <strong>파일을 저장할 때마다 &lsquo;무엇을 왜 바꿨는지&rsquo;와 함께 기록해 두는 도구</strong>라고 보면 됩니다.
+                널리 쓰이는 것으로 <strong>Git</strong>이 있습니다.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">되돌릴 수 있다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        바뀐 내력이 전부 남아 있어 <strong>어느 시점으로든 돌아갈 수 있습니다.</strong>
+                        <strong>과감하게 고쳐 볼 수 있게 되는 것</strong>이 진짜 효과입니다 &mdash;
+                        되돌릴 수 없으면 손대기가 무서워집니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">누가 언제 왜 바꿨는지 남는다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        기록을 훑으면 <strong>어제까지 되던 것이 왜 안 되는지</strong>를 되짚을 수 있습니다.
+                        2-1에서 &ldquo;나중에 고칠 수 있게 하려고 글을 남긴다&rdquo;고 한 것의 도구판입니다.
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">따로 고치고 합칠 수 있다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        각자 고친 것을 <strong>서로 덮어쓰지 않고 합칠 수</strong> 있습니다.
+                        <strong>같은 줄</strong>을 둘이 다르게 고쳤을 때만 도구가 멈춰 서서
+                        <strong>어느 쪽을 택할지 사람에게 묻습니다.</strong>
+                    </p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 space-y-2">
+                    <p class="font-black text-lg text-orange-900">확인을 자동으로 돌린다</p>
+                    <p class="text-base text-slate-700 leading-relaxed">
+                        누군가 코드를 올릴 때마다 <strong>번역이 되는지, 준비해 둔 값들이 통과하는지를 자동으로</strong> 돌려 볼 수 있습니다.
+                        <strong>2-2의 테스트를 사람이 잊어도 기계가 대신 챙깁니다.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2">
+                <p class="font-bold text-base text-slate-800">
+                    <i class="fa-solid fa-circle-info text-orange-500 mr-1"></i>도구를 갖췄다고 협업이 되지는 않습니다
+                </p>
+                <p class="text-base text-slate-700 leading-relaxed">
+                    버전 관리는 <strong>엉킴을 풀어 주는 도구일 뿐</strong>입니다.
+                    누가 어디까지 맡을지, 무엇을 먼저 만들지, 이름을 어떻게 지을지는
+                    <strong>사람끼리 미리 정해 두어야</strong> 합니다.
+                    정해 두지 않으면 <strong>합칠 때마다 같은 자리에서 부딪힙니다.</strong>
+                    도구가 대신 정해 주지 않습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 border-l-4 border-l-sky-500 rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <span class="shrink-0 bg-sky-500 text-white font-bold text-base px-4 py-1.5 rounded-full whitespace-nowrap">
+                <i class="fa-solid fa-circle-question mr-1"></i>스스로 확인
+            </span>
+            <p class="text-base text-sky-900 font-medium leading-relaxed">
+                버전 관리를 쓰면 <strong>&ldquo;과감하게 고쳐 볼 수 있게 된다&rdquo;</strong>고 했습니다.
+                되돌릴 수 있다는 것과 과감해지는 것 사이에 어떤 연결이 있을까요?
+            </p>
+        </div>
+    </section>
+
+    <!-- ===== Section 5: 핵심 정리 ===== -->
+    <section class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">핵심 정리</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="section-card border-t-4 border-sky-500">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-1"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">실행 파일이 되기까지</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">편집 &rarr; 컴파일 &rarr; 링크 &rarr; 실행</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>컴파일</strong>은 목적 파일을, <strong>링크</strong>는 실행 파일을 만든다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>링크가 <strong>남이 만들어 둔 기능 묶음</strong>을 이어 붙인다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-sky-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>미리 번역해 두는 방식</strong>의 이야기다. 모든 언어가 그렇지는 않다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-orange-500">
+                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-2"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">통합 개발 환경</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">IDE</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>편집기 &middot; 번역기 &middot; 디버거를 <strong>한자리에 모아 둔 것</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>없던 기능을 만든 것이 아니라 <strong>오가는 수고를 없앤 것</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-orange-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>내 컴퓨터에 <strong>설치하는 것</strong>과 <strong>브라우저로 쓰는 것</strong>이 있다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-emerald-500">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-3"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">디버거</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">멈춰 세우고 들여다본다</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>중단점</strong>에서 멈추고 <strong>한 줄씩</strong> 걸으며 값을 본다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>맞다고 확인한 구간은 <strong>건너뛰어 범위를 좁힌다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-emerald-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span><strong>오류를 찾아 주지는 않는다</strong> &mdash; 판단은 사람이 한다</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="section-card border-t-4 border-violet-500">
+                <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-4"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-1">여럿이 함께 만들기</h3>
+                <p class="text-base font-medium text-slate-400 mb-3">버전 관리 시스템</p>
+                <ul class="space-y-2 text-base text-slate-600 leading-relaxed">
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>바꾼 내력을 남겨 <strong>어느 시점으로든 되돌릴 수</strong> 있다</span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>따로 고친 것을 <strong>덮어쓰지 않고 합친다</strong></span>
+                    </li>
+                    <li class="flex gap-2"><i class="fa-solid fa-circle text-violet-400 mt-1.5 shrink-0"
+                                              style="font-size:0.5rem"></i><span>도구는 엉킴을 풀 뿐, <strong>나누는 일은 사람이 정한다</strong></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Section 6: 퀴즈 ===== -->
+    <section id="quiz" class="scroll-mt-24 space-y-8">
+        <div class="text-center space-y-4">
+            <h2 class="text-3xl font-black text-slate-900">확인 퀴즈</h2>
+            <div class="w-20 h-1.5 bg-orange-500 mx-auto rounded-full"></div>
+            <p class="text-lg text-slate-600">오늘 배운 내용을 확인해 봅시다!</p>
+        </div>
+
+        <!-- 퀴즈 1 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-orange-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q1
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    목적 파일들과 미리 만들어진 기능 묶음을 이어 붙여 <strong>실행 파일</strong>을 만드는 단계는?
+                </p>
+            </div>
+            <div class="space-y-3" id="q1">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '편집은 사람이 소스 코드를 적는 단계입니다.')">
+                    ① 편집
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '컴파일은 소스 파일을 기계어로 옮겨 목적 파일을 만드는 단계입니다. 아직 실행 파일은 없습니다.')">
+                    ② 컴파일
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 링크가 흩어진 목적 파일과 기능 묶음을 하나로 이어 붙여 실행 파일을 만듭니다.')">
+                    ③ 링크
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '실행은 이미 만들어진 실행 파일을 돌리는 단계입니다.')">
+                    ④ 실행
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 2 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-orange-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q2
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    <strong>디버거</strong>에 대한 설명으로 옳은 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q2">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '디버거는 값을 보여 줄 뿐 어디가 잘못됐는지 판단해 주지 않습니다. 판단은 사람의 몫입니다.')">
+                    ① 눌러 두면 잘못된 줄을 찾아 표시해 준다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '맞습니다! 중단점을 걸어 그 줄에서 멈추게 하고, 그 시점의 값을 들여다볼 수 있습니다.')">
+                    ② 원하는 줄에서 멈춰 세우고 그때의 값을 보여 준다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '문법 오류는 번역 단계에서 걸립니다. 디버거는 돌아가는 프로그램을 들여다보는 도구입니다.')">
+                    ③ 문법에 어긋난 곳을 번역 전에 모두 고쳐 준다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '값을 화면에 찍어 보는 방법도 훌륭합니다. 둘 중 하나만 옳은 것이 아니라 상황에 따라 골라 씁니다.')">
+                    ④ 값을 화면에 찍어 보는 방법보다 언제나 낫다
+                </button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 3 -->
+        <div class="section-card space-y-5">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-orange-600 text-white rounded-full flex items-center justify-center font-black text-base shrink-0">
+                    Q3
+                </div>
+                <p class="text-lg font-bold text-slate-800 leading-relaxed">
+                    개발 환경에 대한 설명으로 <strong>옳지 않은</strong> 것은?
+                </p>
+            </div>
+            <div class="space-y-3" id="q3">
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, true, '이것이 옳지 않습니다. 통합은 따로 있던 도구를 한자리에 모았다는 뜻입니다. 만들 수 있는 프로그램이 달라지지는 않습니다.')">
+                    ① 통합 개발 환경을 써야만 만들 수 있는 프로그램이 있다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 되돌릴 수 있으니 과감하게 고쳐 볼 수 있게 됩니다.')">
+                    ② 버전 관리는 되돌릴 수 있게 해 주어 시도를 쉽게 만든다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 누가 어디까지 맡을지는 사람끼리 미리 정해 두어야 합니다.')">
+                    ③ 버전 관리 도구가 일을 어떻게 나눌지 정해 주지는 않는다
+                </button>
+                <button class="quiz-btn"
+                        onclick="checkAnswer(this, false, '맞는 설명입니다. 브라우저로 쓰는 환경은 깔 것이 없는 대신 인터넷에 기댑니다.')">
+                    ④ 브라우저로 쓰는 개발 환경은 인터넷이 끊기면 쓰기 어렵다
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- ── 푸터 ── -->
+<footer class="bg-white border-t border-slate-200 mt-20 px-6 py-5">
+    <div class="max-w-6xl mx-auto flex items-center justify-center gap-1">
+        <a href="../../index.html" title="강의노트 목록" aria-label="강의노트 목록"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-house text-base"></i></a>
+        <a href="https://github.com/itmir913/Visual-Assets-for-CS-Teacher" target="_blank" rel="noopener noreferrer"
+           title="GitHub 저장소" aria-label="GitHub 저장소"
+           class="w-11 h-11 grid place-items-center rounded-lg text-slate-500 hover:text-orange-600 hover:bg-slate-100 transition-colors"><svg viewBox="0 0 16 16" class="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        <span class="text-base text-slate-400 ml-2">&copy; luminousky</span>
+    </div>
+</footer>
+
+<script>
+    function checkAnswer(btn, isCorrect, message) {
+        const container = btn.closest('[id^="q"]');
+        const buttons = container.querySelectorAll('.quiz-btn');
+
+        buttons.forEach(b => b.classList.add('disabled'));
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i>' + btn.textContent.trim();
+            showToast('✅ ' + message, 'success');
+        } else {
+            btn.classList.add('wrong');
+            btn.innerHTML = '<i class="fa-solid fa-circle-xmark mr-2"></i>' + btn.textContent.trim();
+            showToast('❌ ' + message, 'error');
+        }
+
+        setTimeout(() => {
+            buttons.forEach(b => {
+                b.classList.remove('disabled', 'correct', 'wrong');
+                const text = b.textContent.trim().replace(/^[✅❌]\s*/, '');
+                b.innerHTML = text;
+            });
+        }, 3000);
+    }
+
+    function showToast(message, type) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.style.cssText = `
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+            padding: 1rem 1.5rem; border-radius: 1rem; font-weight: 700; font-size: 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 9999; max-width: 90vw; text-align: center;
+            transition: all 0.3s ease; opacity: 0;
+            ${type === 'success'
+            ? 'background: #ea580c; color: white;'
+            : 'background: #f43f5e; color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(2rem)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+</body>
+</html>
